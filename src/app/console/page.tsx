@@ -1,9 +1,12 @@
-import { QueueClient } from "@/components/QueueClient";
+import { LayoutDashboard } from "lucide-react";
+import { ComingSoon } from "@/components/ComingSoon";
 
-export default function ConsolePage() {
+export default function ConsoleDashboardPage() {
   return (
-    <main className="mx-auto max-w-6xl p-6">
-      <QueueClient />
-    </main>
+    <ComingSoon
+      title="Dashboard"
+      subtitle="Operations overview across requests, decisions, and revenue."
+      icon={LayoutDashboard}
+    />
   );
 }

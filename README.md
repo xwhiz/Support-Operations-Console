@@ -7,6 +7,10 @@ An AI agent triages e-commerce support requests (refunds, cancellations, replace
 
 **Stack:** Next.js 16 (App Router) · PostgreSQL 16 · Drizzle ORM · Google Gemini (`@google/genai`, real tool-calling loop) · TanStack Query + Postgres LISTEN/NOTIFY · Vitest.
 
+## Beyond the brief
+
+Beyond the required functionality, I expanded the application into a more complete support operations platform by adding customer and reviewer dashboards, operational analytics, an order management view, richer seed data, and a polished design system. These additions were intentionally kept separate from the core safety architecture so they enhanced the product without compromising the concurrency, guardrails, or human-approval boundary.
+
 ## Demo accounts (password: `password123`)
 
 | Role | Email | Lands on |

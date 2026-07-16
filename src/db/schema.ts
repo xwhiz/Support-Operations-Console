@@ -25,6 +25,7 @@ import {
   uniqueIndex,
   index,
   check,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 // ---------------------------------------------------------------------------
@@ -341,13 +342,13 @@ export const escalations = pgTable(
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     executedAt: timestamp("executed_at", { withTimezone: true }),
     resultingRefundId: uuid("resulting_refund_id").references(
-      (): any => refunds.id,
+      (): AnyPgColumn => refunds.id,
     ),
     resultingCancellationId: uuid("resulting_cancellation_id").references(
-      (): any => cancellations.id,
+      (): AnyPgColumn => cancellations.id,
     ),
     resultingReplacementId: uuid("resulting_replacement_id").references(
-      (): any => replacements.id,
+      (): AnyPgColumn => replacements.id,
     ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

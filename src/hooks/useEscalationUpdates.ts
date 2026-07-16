@@ -11,7 +11,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  */
 export function useEscalationUpdates(onChange: () => void) {
   const cb = useRef(onChange);
-  cb.current = onChange;
+  // Keep the latest callback without re-subscribing the long-poll loop.
+  useEffect(() => {
+    cb.current = onChange;
+  });
 
   useEffect(() => {
     let active = true;

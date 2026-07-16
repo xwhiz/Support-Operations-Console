@@ -10,9 +10,5 @@ export default async function EscalationPage({
   const session = await getSession();
   if (!session) redirect("/login?next=/console");
   const { id } = await params;
-  return (
-    <main className="mx-auto max-w-4xl p-6">
-      <EscalationReview id={id} viewerId={session.sub} />
-    </main>
-  );
+  return <EscalationReview id={id} viewerId={session.sub} />;
 }
