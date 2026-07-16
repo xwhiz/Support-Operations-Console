@@ -58,8 +58,7 @@ export function PortalClient() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const detail = typeof body?.detail === "string" ? body.detail : "";
-        if (/429|RESOURCE_EXHAUSTED|quota/i.test(detail)) {
+        if (res.status === 429 || body?.error === "rate_limited") {
           throw new Error("The assistant is briefly rate-limited — please try again in a moment.");
         }
         throw new Error("Something went wrong processing your request.");

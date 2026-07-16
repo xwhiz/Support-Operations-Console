@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getSession } from "@/lib/session-cookie";
 import { hasPermission } from "@/lib/rbac";
 import { getEscalationDetail } from "@/services/escalation-reads";
@@ -13,6 +14,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const { id } = await params;
+  if (!z.string().uuid().safeParse(id).success) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
   const detail = await getEscalationDetail(id);
   if (!detail) return NextResponse.json({ error: "not_found" }, { status: 404 });
   return NextResponse.json(detail);

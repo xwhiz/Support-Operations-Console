@@ -32,9 +32,12 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(result);
   } catch (e) {
-    return NextResponse.json(
-      { error: "agent_error", detail: e instanceof Error ? e.message : String(e) },
-      { status: 500 },
-    );
+    const msg = e instanceof Error ? e.message : String(e);
+    // The LLM free tier is easily exhausted; surface that as a clean 429.
+    if (/429|RESOURCE_EXHAUSTED|quota/i.test(msg)) {
+      return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+    }
+    console.error("support-request intake failed:", msg);
+    return NextResponse.json({ error: "agent_error" }, { status: 500 });
   }
 }

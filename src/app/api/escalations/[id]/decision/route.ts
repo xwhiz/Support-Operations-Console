@@ -22,6 +22,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const { id } = await params;
+  if (!z.string().uuid().safeParse(id).success) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "invalid_request" }, { status: 400 });
 
@@ -44,12 +47,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   } catch (e) {
     if (e instanceof ConflictError) {
       // Loser of the race: return the authoritative current state so the UI can
-      // show "already decided by X" and disable the stale action.
-      const current = await getEscalationDetail(id);
-      return NextResponse.json(
-        { error: "conflict", code: e.code, escalation: current?.escalation ?? null },
-        { status: 409 },
-      );
+      // show "already decided by X" and disable the stale action. Guard the read
+      // so a transient DB error here still yields a clean 409, not a 500.
+      let current = null;
+      try {
+        current = (await getEscalationDetail(id))?.escalation ?? null;
+      } catch {
+        /* fall back to a bare 409 */
+      }
+      return NextResponse.json({ error: "conflict", code: e.code, escalation: current }, { status: 409 });
     }
     if (e instanceof ValidationError) {
       return NextResponse.json({ error: e.code }, { status: 422 });

@@ -15,6 +15,12 @@ export async function GET() {
   if (!hasPermission(session.role, "escalation.read")) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  const payload = await waitForEscalationChange(25_000);
-  return NextResponse.json({ changed: payload !== null });
+  // A listener bootstrap failure shouldn't 500 the client's poll loop — return a
+  // benign "no change" so it simply reconnects (the listener self-heals).
+  try {
+    const payload = await waitForEscalationChange(25_000);
+    return NextResponse.json({ changed: payload !== null });
+  } catch {
+    return NextResponse.json({ changed: false }, { status: 200 });
+  }
 }

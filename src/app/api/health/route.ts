@@ -10,9 +10,7 @@ export async function GET() {
     const result = await pool.query("SELECT 1 AS ok");
     return NextResponse.json({ status: "ok", db: result.rows[0]?.ok === 1 });
   } catch (err) {
-    return NextResponse.json(
-      { status: "error", error: err instanceof Error ? err.message : String(err) },
-      { status: 500 },
-    );
+    console.error("health check failed:", err);
+    return NextResponse.json({ status: "error" }, { status: 500 });
   }
 }

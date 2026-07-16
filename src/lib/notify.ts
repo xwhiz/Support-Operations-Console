@@ -20,7 +20,7 @@ async function ensureListener(): Promise<EventEmitter> {
   if (globalForNotify.__notifyEmitter) return globalForNotify.__notifyEmitter;
   if (globalForNotify.__notifyStarting) return globalForNotify.__notifyStarting;
 
-  globalForNotify.__notifyStarting = (async () => {
+  const starting = (async () => {
     const client = new Client({ connectionString: config.DATABASE_URL });
     await client.connect();
     await client.query(`LISTEN ${CHANNEL}`);
@@ -38,7 +38,16 @@ async function ensureListener(): Promise<EventEmitter> {
     return emitter;
   })();
 
-  return globalForNotify.__notifyStarting;
+  // If bootstrap fails (e.g. a transient DB error on the very first connect),
+  // clear the cached promise so the next call retries instead of being stuck
+  // with a permanently-rejected promise for the life of the process.
+  starting.catch(() => {
+    globalForNotify.__notifyStarting = undefined;
+    globalForNotify.__notifyEmitter = undefined;
+  });
+
+  globalForNotify.__notifyStarting = starting;
+  return starting;
 }
 
 /** Resolves with the change payload when an escalation changes, or null on timeout. */
