@@ -63,6 +63,13 @@ describe("guarded executor — cancellation", () => {
     });
   });
 
+  it("rejects cancelling a DELIVERED order even if shippedAt is null (delivery implies shipment)", async () => {
+    const { order } = await seedPaidOrder(db, { status: "delivered", shippedAt: null, deliveredAt: new Date() });
+    await expect(executeCancellation(cmd(order.id), db)).rejects.toMatchObject({
+      code: "ALREADY_SHIPPED",
+    });
+  });
+
   it("rejects cancelling someone else's order (NOT_AUTHORIZED)", async () => {
     const { order } = await seedPaidOrder(db, { status: "paid" });
     const other = await insertCustomer(db);

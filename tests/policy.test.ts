@@ -7,6 +7,7 @@ function order(over: Partial<PolicyInput["order"] & object> = {}) {
   return {
     customerId: REQUESTER,
     shippedAt: null,
+    deliveredAt: null,
     createdAt: new Date(),
     capturedTotal: "100.00",
     refundedTotal: "0.00",
@@ -55,6 +56,15 @@ describe("policy engine", () => {
     expect(d).toEqual({ mode: "REJECT", reasons: ["ALREADY_SHIPPED"] });
   });
 
+  it("REJECT for cancelling a delivered order (delivery implies shipment)", () => {
+    const d = decidePolicy({
+      actionType: "cancellation",
+      requesterCustomerId: REQUESTER,
+      order: order({ shippedAt: null, deliveredAt: new Date() }),
+    });
+    expect(d).toEqual({ mode: "REJECT", reasons: ["ALREADY_SHIPPED"] });
+  });
+
   it("ESCALATE for a cancellation outside the window", () => {
     const d = decidePolicy({
       actionType: "cancellation",
@@ -69,18 +79,20 @@ describe("policy engine", () => {
     expect(d.reasons).toContain("REPLACEMENT_ALWAYS_REVIEWED");
   });
 
-  it("ESCALATE when the requester does not own the order", () => {
+  it("REJECT when the requester does not own the order (no human-approvable action)", () => {
     const d = decidePolicy({
       actionType: "refund",
       amount: "10.00",
       requesterCustomerId: REQUESTER,
       order: order({ customerId: "someone-else" }),
     });
+    expect(d.mode).toBe("REJECT");
     expect(d.reasons).toContain("NOT_AUTHORIZED");
   });
 
-  it("ESCALATE when the order is missing (hallucinated id)", () => {
+  it("REJECT when the order is missing (hallucinated id)", () => {
     const d = decidePolicy({ actionType: "refund", amount: "10.00", requesterCustomerId: REQUESTER, order: null });
+    expect(d.mode).toBe("REJECT");
     expect(d.reasons).toContain("ORDER_NOT_FOUND");
   });
 

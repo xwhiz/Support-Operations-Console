@@ -190,7 +190,7 @@ describe("intake — agent loop + policy + execution", () => {
     expect(res.reasons).toContain("REPLACEMENT_ALWAYS_REVIEWED");
   });
 
-  it("ESCALATE: refund on someone else's order (authorization)", async () => {
+  it("REJECT: refund on someone else's order is auto-declined, never escalated", async () => {
     const { order } = await seedPaidOrder(db, { total: "40.00" }); // owned by customer A
     const attacker = await insertCustomer(db);
     const res = await handleSupportRequest({
@@ -202,13 +202,16 @@ describe("intake — agent loop + policy + execution", () => {
         done("Reviewing."),
       ]),
     });
-    expect(res.decision).toBe("escalated");
+    expect(res.decision).toBe("rejected");
     expect(res.reasons).toContain("NOT_AUTHORIZED");
+    // No refund and no human-approvable escalation on the other customer's order.
     const refs = await db.select().from(refunds).where(eq(refunds.orderId, order.id));
     expect(refs).toHaveLength(0);
+    const escs = await db.select().from(escalations).where(eq(escalations.supportRequestId, res.supportRequestId));
+    expect(escs).toHaveLength(0);
   });
 
-  it("ESCALATE: hallucinated order id -> escalation with no order", async () => {
+  it("REJECT: hallucinated order id is auto-declined", async () => {
     const customer = await insertCustomer(db);
     const res = await handleSupportRequest({
       requesterCustomerId: customer.id,
@@ -219,10 +222,10 @@ describe("intake — agent loop + policy + execution", () => {
         done("Reviewing."),
       ]),
     });
-    expect(res.decision).toBe("escalated");
+    expect(res.decision).toBe("rejected");
     expect(res.reasons).toContain("ORDER_NOT_FOUND");
-    const [esc] = await db.select().from(escalations).where(eq(escalations.supportRequestId, res.supportRequestId));
-    expect(esc.orderId).toBeNull();
+    const escs = await db.select().from(escalations).where(eq(escalations.supportRequestId, res.supportRequestId));
+    expect(escs).toHaveLength(0);
   });
 
   it("ESCALATE: no proposal (model only chats) -> no_action escalation", async () => {

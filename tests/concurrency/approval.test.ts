@@ -3,7 +3,7 @@ import type { Pool } from "pg";
 import { and, eq, inArray } from "drizzle-orm";
 import { makeTestDb, truncateAll } from "../helpers/db";
 import { seedRefundEscalation, insertReviewer } from "../helpers/fixtures";
-import { escalations, refunds } from "../../src/db/schema";
+import { escalations, refunds, executionAttempts } from "../../src/db/schema";
 import { approveEscalation, rejectEscalation } from "../../src/services/escalations";
 import { ConflictError } from "../../src/services/errors";
 
@@ -62,6 +62,16 @@ describe("escalation decisions — double-approval exactly-once", () => {
     expect(esc.status).toBe("executed");
     expect(esc.decidedByReviewerId).toBe(reviewerA.id);
     expect(esc.decision).toBe("approve");
+
+    // The human-approval channel is audited in execution_attempts.
+    const attempts = await db
+      .select()
+      .from(executionAttempts)
+      .where(eq(executionAttempts.escalationId, escalation.id));
+    const executed = attempts.filter(
+      (a) => a.initiatedVia === "human_approval" && a.outcome === "executed",
+    );
+    expect(executed).toHaveLength(1);
   });
 
   it("reject transitions to rejected without executing", async () => {
