@@ -48,6 +48,16 @@ export class NotFoundError extends Error {
   }
 }
 
+/** A well-formed request that cannot be processed (maps to HTTP 422). */
+export class ValidationError extends Error {
+  readonly code: string;
+  constructor(code: string) {
+    super(`validation: ${code}`);
+    this.name = "ValidationError";
+    this.code = code;
+  }
+}
+
 /** Pull the underlying Postgres error code from a driver/Drizzle-wrapped error. */
 export function pgErrorCode(e: unknown): string | undefined {
   const err = e as { code?: string; cause?: { code?: string } } | undefined;
