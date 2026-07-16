@@ -217,6 +217,8 @@ export async function listCustomerRequests(customerId: string, dbc: DB = appDb) 
       finalDecision: agentRuns.finalDecision,
       finalMessage: agentRuns.finalMessage,
       escalationStatus: escalations.status,
+      decision: escalations.decision,
+      decisionNote: escalations.decisionNote,
     })
     .from(supportRequests)
     .leftJoin(agentRuns, eq(agentRuns.supportRequestId, supportRequests.id))
@@ -242,6 +244,8 @@ export async function listCustomerRequests(customerId: string, dbc: DB = appDb) 
       escalationStatus: r.escalationStatus,
       actionDescription: describeAction(payload),
       finalMessage: r.finalMessage,
+      decision: r.decision,
+      decisionNote: r.decisionNote,
     };
   });
 }

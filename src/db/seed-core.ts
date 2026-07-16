@@ -202,6 +202,7 @@ export async function runSeed(db: DB): Promise<void> {
     summary: string;
     status?: "pending" | "executed" | "rejected";
     decidedBy?: string;
+    note?: string;
     createdAt?: Date;
   }) {
     const createdAt = opts.createdAt ?? new Date();
@@ -256,6 +257,7 @@ export async function runSeed(db: DB): Promise<void> {
       orderId: opts.orderRow.id,
       status,
       decision: decided ? (status === "executed" ? "approve" : "reject") : null,
+      decisionNote: decided ? (opts.note ?? null) : null,
       decidedByReviewerId: decided ? (opts.decidedBy ?? rae.id) : null,
       decidedAt: decided ? clampPast(new Date(createdAt.getTime() + randint(1, 40) * 3600_000)) : null,
       createdAt,
@@ -278,6 +280,35 @@ export async function runSeed(db: DB): Promise<void> {
     actionType: "replacement",
     reasons: ["REPLACEMENT_ALWAYS_REVIEWED"],
     summary: "Ship a replacement for order #1004. Policy: ESCALATE (REPLACEMENT_ALWAYS_REVIEWED).",
+  });
+  // Two decided anchors so the customer always sees an approved + a declined
+  // request (each with the reviewer's note), and the Approved/Rejected filters
+  // are never empty.
+  await seedEscalation({
+    customerId: alice.id,
+    orderRow: o1001.order,
+    message: "Can I get a refund for order 1001? It wasn't quite what I expected.",
+    actionType: "refund",
+    amount: "40.00",
+    reasons: ["ABOVE_AUTO_LIMIT"],
+    summary: "Refund $40.00 for order #1001.",
+    status: "executed",
+    decidedBy: rae.id,
+    note: "Verified the order and amount — refund approved.",
+    createdAt: daysAgo(4),
+  });
+  await seedEscalation({
+    customerId: alice.id,
+    orderRow: o1003.order,
+    message: "I'd like another refund on order 1003.",
+    actionType: "refund",
+    amount: "30.00",
+    reasons: ["NOTHING_REFUNDABLE"],
+    summary: "Refund $30.00 for order #1003.",
+    status: "rejected",
+    decidedBy: sam.id,
+    note: "Order 1003 was already fully refunded, so no further refund can be issued.",
+    createdAt: daysAgo(3),
   });
 
   // --- Generated population ----------------------------------------------
@@ -430,6 +461,17 @@ export async function runSeed(db: DB): Promise<void> {
     "The product stopped working after a day.",
   ];
 
+  const APPROVE_NOTES = [
+    "Verified the order and amount — approved.",
+    "Valid request, refund approved.",
+    "Confirmed the order details; approved.",
+  ];
+  const REJECT_NOTES = [
+    "Outside our refund window — unable to approve.",
+    "Order was already resolved; no further action needed.",
+    "Not enough detail to approve this request.",
+    "This item isn't eligible for a refund.",
+  ];
   const REQ_COUNT = 12;
   let escalatedCount = 0;
   for (let i = 0; i < REQ_COUNT; i++) {
@@ -526,6 +568,11 @@ export async function runSeed(db: DB): Promise<void> {
         orderId: target.row.id,
         status: escState,
         decision: decided ? (escState === "executed" ? "approve" : "reject") : null,
+        decisionNote: decided
+          ? escState === "executed"
+            ? pick(APPROVE_NOTES)
+            : pick(REJECT_NOTES)
+          : null,
         decidedByReviewerId: decided ? pick(reviewers).id : null,
         decidedAt: decided
           ? clampPast(new Date(createdAt.getTime() + randint(1, 48) * 3600_000))
@@ -540,5 +587,5 @@ export async function runSeed(db: DB): Promise<void> {
   console.log(`  Reviewers: rae@support.example.com, sam@support.example.com`);
   console.log(`  Password (all): ${DEMO_PASSWORD}`);
   console.log(`  Orders: ${5 + genOrders.length} (1001–${orderNumber - 1})`);
-  console.log(`  Support requests: ${REQ_COUNT + 2} (+2 anchor escalations, ${escalatedCount} generated escalations)`);
+  console.log(`  Support requests: ${REQ_COUNT + 4} (+4 anchor escalations, ${escalatedCount} generated escalations)`);
 }

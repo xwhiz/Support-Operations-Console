@@ -20,6 +20,8 @@ type MyRequest = {
   escalationStatus: string | null;
   actionDescription: string;
   finalMessage: string | null;
+  decision: string | null;
+  decisionNote: string | null;
 };
 
 type SubmitResult = {
@@ -158,6 +160,11 @@ export function PortalRequests({ prefill }: { prefill?: string }) {
           <ul className="space-y-3">
             {items.map((r) => {
               const s = customerRequestStatusView(r);
+              const decided =
+                !!r.escalationStatus && r.escalationStatus !== "pending";
+              const approved =
+                r.escalationStatus === "approved" ||
+                r.escalationStatus === "executed";
               return (
                 <Card key={r.id} padded={false} className="p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -168,11 +175,26 @@ export function PortalRequests({ prefill }: { prefill?: string }) {
                       {s.label}
                     </Badge>
                   </div>
-                  {r.finalMessage && (
+                  {decided ? (
+                    r.decisionNote ? (
+                      <p className="mt-1.5 text-sm text-gray-600">
+                        <span className="font-medium text-gray-700">
+                          Reviewer note:
+                        </span>{" "}
+                        {r.decisionNote}
+                      </p>
+                    ) : (
+                      <p className="mt-1.5 text-sm text-gray-500">
+                        {approved
+                          ? "Your request was approved and actioned."
+                          : "This request was declined after review."}
+                      </p>
+                    )
+                  ) : r.finalMessage ? (
                     <p className="mt-1.5 text-sm text-gray-500">
                       {r.finalMessage}
                     </p>
-                  )}
+                  ) : null}
                   <p className="mt-2 text-xs text-gray-400">
                     {timeAgo(r.createdAt)}
                   </p>
