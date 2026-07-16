@@ -15,6 +15,13 @@
       "when": 1784192996701,
       "tag": "0001_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784197762535,
+      "tag": "0002_escalation_order_nullable",
+      "breakpoints": true
     }
   ]
 }

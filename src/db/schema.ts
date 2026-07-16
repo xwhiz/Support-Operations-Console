@@ -329,9 +329,8 @@ export const escalations = pgTable(
     proposedActionId: uuid("proposed_action_id")
       .notNull()
       .references(() => proposedActions.id),
-    orderId: uuid("order_id")
-      .notNull()
-      .references(() => orders.id),
+    // Nullable: hallucinated/ambiguous requests escalate with no resolved order.
+    orderId: uuid("order_id").references(() => orders.id),
     status: escalationStatusEnum("status").notNull().default("pending"),
     version: integer("version").notNull().default(0),
     decidedByReviewerId: uuid("decided_by_reviewer_id").references(
