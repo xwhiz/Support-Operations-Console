@@ -34,4 +34,22 @@ describe("rbac", () => {
     expect(homeForRole("reviewer")).toBe("/console");
     expect(homeForRole("admin")).toBe("/console");
   });
+
+  it("grants order permissions per role", () => {
+    expect(hasPermission("customer", "order.create")).toBe(true);
+    expect(hasPermission("customer", "order.read_own")).toBe(true);
+    expect(hasPermission("customer", "order.update_status")).toBe(false);
+    expect(hasPermission("reviewer", "order.update_status")).toBe(true);
+    expect(hasPermission("reviewer", "order.read_any")).toBe(true);
+    expect(hasPermission("reviewer", "order.create")).toBe(false);
+    expect(hasPermission("admin", "order.update_status")).toBe(true);
+    expect(hasPermission("admin", "order.create")).toBe(true);
+  });
+
+  it("maps the new API routes to permissions", () => {
+    expect(requiredPermissionFor("/api/my-orders")).toBe("order.read_own");
+    expect(requiredPermissionFor("/api/customers")).toBe("order.read_any");
+    expect(requiredPermissionFor("/api/portal/overview")).toBe("order.read_own");
+    expect(requiredPermissionFor("/api/analytics/overview")).toBe("escalation.read");
+  });
 });
