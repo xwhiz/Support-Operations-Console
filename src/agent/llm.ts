@@ -81,15 +81,21 @@ export function createGeminiClient(): LlmClient {
         config: {
           systemInstruction: system,
           temperature: 0,
-          tools: [
-            {
-              functionDeclarations: tools.map((t) => ({
-                name: t.name,
-                description: t.description,
-                parametersJsonSchema: t.parametersJsonSchema,
-              })),
-            },
-          ],
+          // Only send a tools block when there are tools — an empty
+          // functionDeclarations array is rejected, and compose calls pass none.
+          ...(tools.length > 0
+            ? {
+                tools: [
+                  {
+                    functionDeclarations: tools.map((t) => ({
+                      name: t.name,
+                      description: t.description,
+                      parametersJsonSchema: t.parametersJsonSchema,
+                    })),
+                  },
+                ],
+              }
+            : {}),
         },
       });
 

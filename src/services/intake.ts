@@ -18,6 +18,7 @@ import {
   agentRuns,
 } from "../db/schema";
 import { runAgent } from "../agent/loop";
+import { composeCustomerMessage } from "../agent/compose";
 import type { LlmClient } from "../agent/llm";
 import { decidePolicy, type PolicyMode, type ReasonCode } from "./policy";
 import { executeRefund, executeCancellation } from "./guarded-executor";
@@ -157,9 +158,16 @@ export async function handleSupportRequest(params: {
     finalDecision: string,
     escalationId?: string,
   ): Promise<IntakeResult> => {
-    const finalMessage = run.finalMessage?.trim()
-      ? run.finalMessage
-      : customerMessage(status, decision.reasons, description);
+    // The agent composes the customer-facing reply from the actual decision;
+    // fall back to a deterministic template if the LLM call fails.
+    const composed = await composeCustomerMessage({
+      request: params.rawText,
+      decision: status,
+      actionDescription: description,
+      reasons: decision.reasons,
+      llm: params.llm,
+    });
+    const finalMessage = composed ?? customerMessage(status, decision.reasons, description);
     await dbc
       .update(agentRuns)
       .set({ finalDecision, decisionSummary, finalMessage })
