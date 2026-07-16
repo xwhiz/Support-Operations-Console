@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Inbox } from "lucide-react";
+import { CheckCircle2, Inbox, Layers, XCircle, Clock } from "lucide-react";
 import { useEscalationUpdates } from "@/hooks/useEscalationUpdates";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
 import { FilterTabs } from "@/components/ui/FilterTabs";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
@@ -29,24 +30,28 @@ type QueueItem = {
   requestStatus: string;
   message: string;
   customerName: string | null;
-  decision: string | null;
   actionType: string;
   actionDescription: string;
-  amount: string | null;
   policyReasons: string[];
   escalationId: string | null;
   escalationStatus: string | null;
   decidedByName: string | null;
 };
 
-type Filter = "needs_review" | "all";
+type Kpis = {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  auto_resolved: number;
+};
 
-async function fetchQueue(filter: Filter): Promise<QueueItem[]> {
-  const res = await fetch(`/api/requests?filter=${filter}`, {
-    cache: "no-store",
-  });
+type Filter = "pending" | "approved" | "rejected" | "auto_resolved" | "all";
+
+async function fetchQueue(filter: Filter): Promise<{ items: QueueItem[]; kpis: Kpis }> {
+  const res = await fetch(`/api/requests?filter=${filter}`, { cache: "no-store" });
   if (!res.ok) throw new Error("failed to load queue");
-  return (await res.json()).items as QueueItem[];
+  return res.json();
 }
 
 function timeAgo(iso: string): string {
@@ -60,17 +65,16 @@ function timeAgo(iso: string): string {
 }
 
 export function RequestsQueue() {
-  const [filter, setFilter] = useState<Filter>("needs_review");
+  const [filter, setFilter] = useState<Filter>("pending");
   const qc = useQueryClient();
-  const { data: items = [], isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["queue", filter],
     queryFn: () => fetchQueue(filter),
   });
   useEscalationUpdates(() => qc.invalidateQueries({ queryKey: ["queue"] }));
 
-  const pendingCount = items.filter(
-    (i) => i.escalationStatus === "pending",
-  ).length;
+  const items = data?.items ?? [];
+  const k = data?.kpis;
 
   return (
     <div className="space-y-6">
@@ -79,18 +83,26 @@ export function RequestsQueue() {
         subtitle="Support requests triaged by the assistant and routed for review."
       />
 
-      <FilterTabs<Filter>
-        value={filter}
-        onChange={setFilter}
-        options={[
-          {
-            value: "needs_review",
-            label: "Needs review",
-            count: filter === "needs_review" ? pendingCount : undefined,
-          },
-          { value: "all", label: "All activity" },
-        ]}
-      />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Pending review" value={k?.pending ?? "—"} icon={Clock} />
+        <StatCard label="Approved" value={k?.approved ?? "—"} icon={CheckCircle2} />
+        <StatCard label="Rejected" value={k?.rejected ?? "—"} icon={XCircle} />
+        <StatCard label="Auto-resolved" value={k?.auto_resolved ?? "—"} icon={Layers} />
+      </div>
+
+      <div className="overflow-x-auto">
+        <FilterTabs<Filter>
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: "pending", label: "Pending", count: k?.pending },
+            { value: "approved", label: "Approved", count: k?.approved },
+            { value: "rejected", label: "Rejected", count: k?.rejected },
+            { value: "auto_resolved", label: "Auto-resolved", count: k?.auto_resolved },
+            { value: "all", label: "All", count: k?.total },
+          ]}
+        />
+      </div>
 
       <TableWrap>
         <Table>
@@ -111,16 +123,8 @@ export function RequestsQueue() {
                 <td colSpan={6}>
                   <EmptyState
                     icon={Inbox}
-                    title={
-                      filter === "needs_review"
-                        ? "Nothing awaiting review"
-                        : "No activity yet"
-                    }
-                    description={
-                      filter === "needs_review"
-                        ? "The queue is clear. New escalations will appear here."
-                        : "Requests will show up here as customers submit them."
-                    }
+                    title="Nothing here"
+                    description="No requests match this filter."
                   />
                 </td>
               </tr>

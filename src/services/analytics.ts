@@ -187,3 +187,66 @@ export async function getCustomersAnalytics(
     rows,
   };
 }
+
+export type PortalOverview = {
+  kpis: {
+    totalOrders: number;
+    totalSpend: string;
+    pendingOrders: number;
+    openRequests: number;
+    resolvedRequests: number;
+  };
+  ordersByStatus: NameValue[];
+  requestsByStatus: NameValue[];
+  ordersPerDay: { label: string; value: number }[];
+};
+
+/** A single customer's own overview — every query scoped to their id. */
+export async function getPortalOverview(
+  customerId: string,
+  dbc: DB = appDb,
+): Promise<PortalOverview> {
+  const [ordByStatus, spend, reqByStatus, perDay] = await Promise.all([
+    dbc.execute(sql`select status, count(*)::int as c from orders where customer_id = ${customerId} group by status`),
+    dbc.execute(sql`select coalesce(sum(p.amount), 0)::text as v from payments p join orders o on o.id = p.order_id where o.customer_id = ${customerId} and p.status in ('captured', 'partially_refunded')`),
+    dbc.execute(sql`select status, count(*)::int as c from support_requests where requester_customer_id = ${customerId} group by status`),
+    dbc.execute(sql`select date_trunc('day', created_at) as d, count(*)::int as c from orders where customer_id = ${customerId} and created_at > now() - interval '60 days' group by 1 order by 1`),
+  ]);
+
+  const ordMap: Record<string, number> = {};
+  let totalOrders = 0;
+  for (const r of ordByStatus.rows as Row[]) {
+    ordMap[String(r.status)] = n(r.c);
+    totalOrders += n(r.c);
+  }
+  const reqMap: Record<string, number> = {};
+  for (const r of reqByStatus.rows as Row[]) reqMap[String(r.status)] = n(r.c);
+
+  return {
+    kpis: {
+      totalOrders,
+      totalSpend: s((spend.rows as Row[])[0]?.v),
+      pendingOrders: (ordMap["pending"] ?? 0) + (ordMap["processing"] ?? 0),
+      openRequests:
+        (reqMap["received"] ?? 0) +
+        (reqMap["processing"] ?? 0) +
+        (reqMap["escalated"] ?? 0),
+      resolvedRequests: reqMap["auto_resolved"] ?? 0,
+    },
+    ordersByStatus: Object.entries(ordMap).map(([name, value]) => ({
+      name,
+      value,
+    })),
+    requestsByStatus: Object.entries(reqMap).map(([name, value]) => ({
+      name,
+      value,
+    })),
+    ordersPerDay: (perDay.rows as Row[]).map((r) => ({
+      label: new Date(r.d as string).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      value: n(r.c),
+    })),
+  };
+}
