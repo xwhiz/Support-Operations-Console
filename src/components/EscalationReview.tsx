@@ -74,6 +74,7 @@ export function EscalationReview({ id, viewerId }: { id: string; viewerId: strin
   const [note, setNote] = useState("");
   const [verified, setVerified] = useState(false);
   const [raced, setRaced] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: async (decision: "approve" | "reject") => {
@@ -94,12 +95,17 @@ export function EscalationReview({ id, viewerId }: { id: string; viewerId: strin
     onSuccess: () => {
       setConfirming(null);
       setRaced(false);
+      setErrorMsg(null);
       qc.invalidateQueries({ queryKey: ["escalation", id] });
       qc.invalidateQueries({ queryKey: ["queue"] });
     },
     onError: (e: Error) => {
       setConfirming(null);
-      if (e.message === "conflict") setRaced(true); // another reviewer won the race
+      if (e.message === "conflict") {
+        setRaced(true); // another reviewer won the race
+      } else {
+        setErrorMsg("Something went wrong completing this action. Please try again.");
+      }
       qc.invalidateQueries({ queryKey: ["escalation", id] });
     },
   });
@@ -142,6 +148,11 @@ export function EscalationReview({ id, viewerId }: { id: string; viewerId: strin
       {raced && isPending && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           Another reviewer just acted on this — refreshing to the latest state.
+        </div>
+      )}
+      {errorMsg && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+          {errorMsg}
         </div>
       )}
 
