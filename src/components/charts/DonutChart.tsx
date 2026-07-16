@@ -56,8 +56,8 @@ export function DonutChart({
         </div>
       </div>
       <ul className="w-full max-w-xs space-y-2.5 sm:w-auto">
-        {data.map((d) => (
-          <li key={d.name} className="flex items-center gap-2.5 text-sm">
+        {data.map((d, i) => (
+          <li key={d.name + i} className="flex items-center gap-2.5 text-sm">
             <span
               className="h-2.5 w-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: d.color }}
