@@ -71,15 +71,7 @@ const EXTRA_CUSTOMERS = [
   "Olivia Rhye",
   "Phoenix Baker",
   "Lana Steiner",
-  "Demi Wilkinson",
   "Candice Wu",
-  "Natali Craig",
-  "Drew Cano",
-  "Orlando Diggs",
-  "Andi Lane",
-  "Kate Morrison",
-  "Koray Okumus",
-  "Ava Wright",
 ];
 
 function customerUuid(i: number): string {
@@ -310,7 +302,7 @@ export async function runSeed(db: DB): Promise<void> {
 
   const genOrders: { row: typeof orders.$inferSelect; customerId: string }[] = [];
   let orderNumber = 1006;
-  const ORDER_COUNT = 66;
+  const ORDER_COUNT = 12;
 
   for (let i = 0; i < ORDER_COUNT; i++) {
     const customer = pick(customers);
@@ -438,7 +430,7 @@ export async function runSeed(db: DB): Promise<void> {
     "The product stopped working after a day.",
   ];
 
-  const REQ_COUNT = 58;
+  const REQ_COUNT = 12;
   let escalatedCount = 0;
   for (let i = 0; i < REQ_COUNT; i++) {
     const target = pick(genOrders);
