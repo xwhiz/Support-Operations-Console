@@ -1,4 +1,12 @@
-import { users, orders, payments } from "../../src/db/schema";
+import {
+  users,
+  orders,
+  payments,
+  supportRequests,
+  agentRuns,
+  proposedActions,
+  escalations,
+} from "../../src/db/schema";
 import type { makeTestDb } from "./db";
 
 type TDB = ReturnType<typeof makeTestDb>["db"];
@@ -90,3 +98,57 @@ export async function seedPaidOrder(
 }
 
 export const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
+export async function insertReviewer(db: TDB, email?: string) {
+  const [u] = await db
+    .insert(users)
+    .values({
+      email: email ?? `rev${nextNumber()}@test.local`,
+      name: "Reviewer",
+      passwordHash: "x",
+      role: "reviewer",
+    })
+    .returning();
+  return u;
+}
+
+/** Create a full escalation chain (request -> run -> proposed refund -> pending escalation). */
+export async function seedRefundEscalation(
+  db: TDB,
+  opts: { total?: string; amount?: string } = {},
+) {
+  const { customer, order, payment } = await seedPaidOrder(db, { total: opts.total ?? "100.00" });
+  const amount = opts.amount ?? "60.00";
+  const [request] = await db
+    .insert(supportRequests)
+    .values({ requesterCustomerId: customer.id, rawText: "refund please", status: "escalated" })
+    .returning();
+  const [run] = await db
+    .insert(agentRuns)
+    .values({ supportRequestId: request.id, model: "test", status: "completed" })
+    .returning();
+  const [proposedAction] = await db
+    .insert(proposedActions)
+    .values({
+      agentRunId: run.id,
+      supportRequestId: request.id,
+      actionType: "refund",
+      targetOrderId: order.id,
+      amount,
+      payload: { type: "refund", orderNumber: order.orderNumber, amount, currency: "USD" },
+      policyMode: "ESCALATE",
+      policyReasons: ["ABOVE_AUTO_LIMIT"],
+      requiresHumanApproval: true,
+    })
+    .returning();
+  const [escalation] = await db
+    .insert(escalations)
+    .values({
+      supportRequestId: request.id,
+      proposedActionId: proposedAction.id,
+      orderId: order.id,
+      status: "pending",
+    })
+    .returning();
+  return { customer, order, payment, request, run, proposedAction, escalation };
+}
