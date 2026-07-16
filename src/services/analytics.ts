@@ -153,11 +153,16 @@ export type CustomersAnalytics = {
 export async function getCustomersAnalytics(
   dbc: DB = appDb,
 ): Promise<CustomersAnalytics> {
-  const [custRes, ordRes, revRes, reqRes, refRes, actRes] = await Promise.all([
+  const [custRes, ordRes, revRes, reqRes, pendRes, refRes, actRes] =
+    await Promise.all([
     dbc.execute(sql`select id, name, email from users where role = 'customer' order by name`),
     dbc.execute(sql`select customer_id as id, count(*)::int as c, coalesce(sum(total_amount), 0)::text as v from orders group by customer_id`),
     dbc.execute(sql`select o.customer_id as id, coalesce(sum(p.amount), 0)::text as v from payments p join orders o on o.id = p.order_id where p.status in ('captured', 'partially_refunded') group by o.customer_id`),
-    dbc.execute(sql`select requester_customer_id as id, count(*)::int as c, count(*) filter (where status in ('received', 'processing', 'escalated'))::int as pending from support_requests group by requester_customer_id`),
+    dbc.execute(sql`select requester_customer_id as id, count(*)::int as c from support_requests group by requester_customer_id`),
+    // "Pending" = requests genuinely awaiting a reviewer decision (escalation
+    // still pending) — NOT ones whose escalation was already decided (the
+    // request row stays 'escalated' after a decision).
+    dbc.execute(sql`select sr.requester_customer_id as id, count(*)::int as pending from escalations e join support_requests sr on sr.id = e.support_request_id where e.status = 'pending' group by sr.requester_customer_id`),
     dbc.execute(sql`select o.customer_id as id, count(*)::int as c, coalesce(sum(r.amount), 0)::text as v from refunds r join orders o on o.id = r.order_id where r.status = 'succeeded' group by o.customer_id`),
     dbc.execute(sql`
       select id, max(ts) as last from (
@@ -172,9 +177,10 @@ export async function getCustomersAnalytics(
     orders.set(String(r.id), { c: n(r.c), v: s(r.v) });
   const revenue = new Map<string, string>();
   for (const r of revRes.rows as Row[]) revenue.set(String(r.id), s(r.v));
-  const reqs = new Map<string, { c: number; pending: number }>();
-  for (const r of reqRes.rows as Row[])
-    reqs.set(String(r.id), { c: n(r.c), pending: n(r.pending) });
+  const reqs = new Map<string, number>();
+  for (const r of reqRes.rows as Row[]) reqs.set(String(r.id), n(r.c));
+  const pending = new Map<string, number>();
+  for (const r of pendRes.rows as Row[]) pending.set(String(r.id), n(r.pending));
   const refs = new Map<string, { c: number; v: string }>();
   for (const r of refRes.rows as Row[])
     refs.set(String(r.id), { c: n(r.c), v: s(r.v) });
@@ -185,15 +191,14 @@ export async function getCustomersAnalytics(
   const rows: CustomerRow[] = (custRes.rows as Row[]).map((c) => {
     const id = String(c.id);
     const o = orders.get(id);
-    const rq = reqs.get(id);
     return {
       customerId: id,
       name: (c.name as string) ?? null,
       email: String(c.email),
       totalOrders: o?.c ?? 0,
       totalRevenue: revenue.get(id) ?? "0",
-      supportRequestCount: rq?.c ?? 0,
-      pendingRequests: rq?.pending ?? 0,
+      supportRequestCount: reqs.get(id) ?? 0,
+      pendingRequests: pending.get(id) ?? 0,
       refundsCount: refs.get(id)?.c ?? 0,
       refundedTotal: refs.get(id)?.v ?? "0",
       lastActivity: last.get(id) ?? null,

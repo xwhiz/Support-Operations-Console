@@ -47,7 +47,7 @@ export function CustomersTable() {
         <StatCard label="Total customers" value={isLoading ? "—" : k?.totalCustomers ?? 0} icon={Users} />
         <StatCard label="Total orders" value={isLoading ? "—" : k?.totalOrders ?? 0} icon={ShoppingBag} />
         <StatCard label="Total revenue" value={isLoading ? "—" : k ? formatMoney(k.totalRevenue) : "—"} icon={Banknote} />
-        <StatCard label="With open requests" value={isLoading ? "—" : k?.withOpenRequests ?? 0} icon={Clock} />
+        <StatCard label="Awaiting review" value={isLoading ? "—" : k?.withOpenRequests ?? 0} icon={Clock} />
       </div>
 
       <TableWrap>
@@ -58,7 +58,7 @@ export function CustomersTable() {
               <Th>Orders</Th>
               <Th>Revenue</Th>
               <Th>Requests</Th>
-              <Th>Pending</Th>
+              <Th>Needs review</Th>
               <Th>Refunded</Th>
               <Th>Last active</Th>
             </Tr>
