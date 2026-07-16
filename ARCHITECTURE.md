@@ -78,6 +78,17 @@ Isolation is READ COMMITTED; correctness comes from explicit locks + constraints
 
 From one `support_requests` row you can reconstruct everything: `agent_runs` (model, decision, `decision_summary`, customer message) → `agent_messages` + `tool_calls` (every tool input/output) → `proposed_actions` (intent + policy mode + reasons) → `escalations` (reviewer decision) → `refunds`/`cancellations`/`replacements` + `execution_attempts` (including rejected attempts). We store a concise `decision_summary`, **not** raw chain-of-thought. `confidence` (if the model provides it) is stored and displayed as **advisory only** — never an input to a safety decision.
 
+## Product surface beyond the core (additive, same safety discipline)
+
+The console and portal were extended into a fuller ops product — dashboards, customer-created orders, reviewer order management, per-customer analytics, and a token-based UI (Recharts) — **without** touching the guarded executor, policy engine, or concurrency guarantees.
+
+- **Customer-created orders → reviewer-managed lifecycle.** Customers assemble an order from a fixed catalog (server-priced; the client only sends `sku` + `quantity`). Reviewers advance status (`pending → paid → shipped → delivered`, or `cancelled`) via `updateOrderStatus` (`src/services/orders.ts`), which reuses the executor's discipline — `SELECT … FOR UPDATE` + a conditional `UPDATE … WHERE version = ?` — so a status change racing a refund correctly conflicts (409). Two invariants are preserved deliberately:
+  - **`paid` mints the captured payment** the refund/cancellation guardrails depend on (idempotently), so a customer-created order flows into the *exact same* triage path rather than a parallel one.
+  - **"No cancel once shipped" is enforced in app code**, because `trg_cancellation_not_shipped` fires only on `cancellations` inserts, not on a direct `orders` status update; a `→ cancelled` transition on a shipped/delivered order is rejected (`already_shipped`). Executor-owned states (`refunded`, `partially_refunded`) are never manual targets.
+- **RBAC additions** (`src/lib/rbac.ts`): `order.create` / `order.read_own` (customer), `order.update_status` (reviewer). `/api/orders` serves `POST` (customer) and `GET` (reviewer) on one path — which the path-based middleware map can't express — so it's enforced per-method inside the handler, consistent with the existing "handlers re-check regardless" defense in depth.
+- **Analytics** (`src/services/analytics.ts`) are read-only grouped aggregate queries (counts, sums, `date_trunc` time series, and a `jsonb`-unnested policy-reason breakdown), merged in JS by customer id to avoid an N-way join blow-up. No new write paths.
+- **Decision transparency.** The reviewer's approve/reject note (`escalations.decision_note`) is now surfaced to the customer alongside the outcome — closing the loop from the same auditable record, with no new source of truth.
+
 ## Build vs Buy (honest)
 
 | Concern | Built here | Would adopt at scale |

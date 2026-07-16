@@ -11,6 +11,13 @@ An AI agent triages e-commerce support requests (refunds, cancellations, replace
 
 Beyond the required functionality, I expanded the application into a more complete support operations platform by adding customer and reviewer dashboards, operational analytics, an order management view, richer seed data, and a polished design system. These additions were intentionally kept separate from the core safety architecture so they enhanced the product without compromising the concurrency, guardrails, or human-approval boundary.
 
+**What was added**
+- **Customer portal** — a dashboard (KPIs + charts), order creation (pick catalog items; no checkout) and an orders list, and a requests view that now shows the reviewer's decision note.
+- **Reviewer console** — an operations dashboard (pie/bar/area charts, avg time-to-decision, policy-reason breakdown), a **Customers** page (revenue / orders / refunds per customer), an **Orders** page to manage order status, and a filterable **Requests** queue with KPI counts.
+- **Design system** — a light, token-based UI (Untitled UI–inspired) with a reusable component + Recharts chart library.
+
+Marking an order **paid** mints the captured payment the refund/cancellation guardrails rely on, so customer-created orders flow into the exact same triage path — the safety core is reused, never bypassed. See [`ARCHITECTURE.md`](./ARCHITECTURE.md#product-surface-beyond-the-core-additive-same-safety-discipline) for details.
+
 ## Demo accounts (password: `password123`)
 
 | Role | Email | Lands on |
@@ -20,7 +27,9 @@ Beyond the required functionality, I expanded the application into a more comple
 | Reviewer | `rae@support.example.com` | `/console` |
 | Reviewer | `sam@support.example.com` | `/console` |
 
-Seeded orders: **1001** open/unshipped ($40, auto-refundable) · **1002** shipped ($120) · **1003** already refunded · **1004** delivered ($80) · **1005** Bob's (authorization test). Two escalations are pre-seeded so the console is reviewable immediately.
+Plus four more seeded customers (Olivia, Phoenix, Lana, Candice) visible in the reviewer's Customers view.
+
+Seeded data: **6 customers**, **~17 orders** spanning every status (anchors **1001** open/$40 auto-refundable · **1002** shipped/$120 · **1003** already refunded · **1004** delivered/$80 · **1005** Bob's authorization test), and support requests across every status. **Four escalations are pre-seeded** — two **pending** (so the console is reviewable immediately) plus an **approved** and a **declined** example, each carrying a reviewer note that's visible in the customer's portal.
 
 ---
 
@@ -44,14 +53,14 @@ npm run db:seed
 npm run dev               # http://localhost:3000
 ```
 
-Open http://localhost:3000 and sign in with a demo account (quick-login buttons are on the login page).
+Open http://localhost:3000 and sign in with a demo account from the table above.
 
 > **Note on the agent:** the customer portal's "submit" calls the live Gemini API. The free tier has a low request cap (e.g. ~20/day on some keys); if you hit it, submissions return a friendly "rate-limited" message. **Everything else — the reviewer console, approvals, guardrails, and all concurrency tests — is LLM-independent** and works regardless (the two pre-seeded escalations let you exercise the full review flow immediately).
 
 ## Tests
 
 ```bash
-npm test                  # full suite (unit + integration, ~68 tests)
+npm test                  # full suite (unit + integration, ~84 tests)
 npm run test:concurrency  # double-refund / double-cancel / double-approval + guardrails
 ```
 Integration tests run against a dedicated `support_console_test` database (created automatically by `docker compose`).
