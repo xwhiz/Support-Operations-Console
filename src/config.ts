@@ -25,7 +25,9 @@ const EnvSchema = z.object({
 
   // LLM (only needed once the agent runs, so optional here).
   GEMINI_API_KEY: z.string().optional().default(""),
-  GEMINI_MODEL: z.string().min(1).default("gemini-2.5-flash"),
+  // gemini-flash-latest tracks the current flash model (avoids the "deprecated
+  // for new users" trap). Override per key/quota if needed.
+  GEMINI_MODEL: z.string().min(1).default("gemini-flash-latest"),
 
   // Policy thresholds. Kept as a string for money so it can be parsed to Decimal.
   AUTO_REFUND_MAX: z.string().default("50.00"),
