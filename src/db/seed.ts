@@ -7,6 +7,10 @@ import {
   orderItems,
   payments,
   refunds,
+  supportRequests,
+  agentRuns,
+  proposedActions,
+  escalations,
 } from "./schema";
 
 /**
@@ -164,10 +168,78 @@ async function main() {
     createdBy: "system",
   });
 
-  // Silence unused-var lint for readability of the mapping above.
+  // Two pending escalations so the reviewer console is demoable out-of-the-box
+  // (and reviewable even without a live LLM key). Mirrors what the agent produces.
+  async function seedEscalation(opts: {
+    orderRow: typeof orders.$inferSelect;
+    message: string;
+    actionType: "refund" | "replacement";
+    amount?: string;
+    reasons: string[];
+    summary: string;
+  }) {
+    const [req] = await db
+      .insert(supportRequests)
+      .values({ requesterCustomerId: alice.id, rawText: opts.message, status: "escalated" })
+      .returning();
+    const [run] = await db
+      .insert(agentRuns)
+      .values({
+        supportRequestId: req.id,
+        model: "seed",
+        status: "completed",
+        finalDecision: "ESCALATE",
+        decisionSummary: opts.summary,
+        finalMessage: "Thanks — a specialist will review your request shortly.",
+      })
+      .returning();
+    const [pa] = await db
+      .insert(proposedActions)
+      .values({
+        agentRunId: run.id,
+        supportRequestId: req.id,
+        actionType: opts.actionType,
+        targetOrderId: opts.orderRow.id,
+        amount: opts.amount ?? null,
+        payload: {
+          type: opts.actionType,
+          orderNumber: opts.orderRow.orderNumber,
+          amount: opts.amount,
+          currency: "USD",
+          rationale: opts.summary,
+        },
+        policyMode: "ESCALATE",
+        policyReasons: opts.reasons,
+        requiresHumanApproval: true,
+      })
+      .returning();
+    await db.insert(escalations).values({
+      supportRequestId: req.id,
+      proposedActionId: pa.id,
+      orderId: opts.orderRow.id,
+      status: "pending",
+    });
+  }
+
+  await seedEscalation({
+    orderRow: o1002.order,
+    message: "Please refund order 1002, I am not satisfied with it.",
+    actionType: "refund",
+    amount: "120.00",
+    reasons: ["ABOVE_AUTO_LIMIT"],
+    summary:
+      "Refund $120.00 for order #1002. Policy: ESCALATE (ABOVE_AUTO_LIMIT). Amount exceeds the auto-approve limit.",
+  });
+  await seedEscalation({
+    orderRow: o1004.order,
+    message: "My order 1004 arrived damaged — please send a replacement.",
+    actionType: "replacement",
+    reasons: ["REPLACEMENT_ALWAYS_REVIEWED"],
+    summary:
+      "Ship a replacement for order #1004. Policy: ESCALATE (REPLACEMENT_ALWAYS_REVIEWED). Replacements are always human-reviewed.",
+  });
+
   void o1001;
-  void o1002;
-  void o1004;
   void rae;
   void sam;
 
@@ -176,6 +248,7 @@ async function main() {
   console.log(`  Reviewers: rae@support.example.com, sam@support.example.com`);
   console.log(`  Password (all): ${DEMO_PASSWORD}`);
   console.log(`  Orders: 1001 (auto), 1002 (shipped), 1003 (refunded), 1004 (delivered), 1005 (Bob's)`);
+  console.log(`  Pending escalations seeded: refund #1002, replacement #1004`);
 }
 
 main()
