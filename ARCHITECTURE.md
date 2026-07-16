@@ -55,7 +55,7 @@ Two read tools + four propose tools, declared as plain JSON Schema (`TOOL_DEFS`)
 |---|---|---|
 | Refund ≤ amount paid | `amount.gt(paid − refunded) → EXCEEDS_PAID` (Decimal) | `refunds_amount_positive` CHECK |
 | No double refund | `activeRefundCount > 0 → NOTHING_REFUNDABLE`; INSERT conflict | `uniq_active_refund_per_order` **partial unique index** |
-| No cancel if shipped | `order.shippedAt != null → ALREADY_SHIPPED` | `trg_cancellation_not_shipped` **trigger** (raises `check_violation`) |
+| No cancel once fulfilled | `order.shippedAt != null \|\| order.deliveredAt != null → ALREADY_SHIPPED` (delivery implies shipment) | `trg_cancellation_not_shipped` **trigger** (shipped OR delivered) |
 
 Every attempt (success, guardrail rejection, conflict) is written to `execution_attempts` — so a *refused* action is itself auditable. Because each rule has both an app check and an independent DB constraint, the executor rejects unsafe actions **even if the Policy Engine or a human approves them**.
 
@@ -69,9 +69,9 @@ Isolation is READ COMMITTED; correctness comes from explicit locks + constraints
 
 ## Failure handling
 
-- **Hallucinated order id** → `getOrder` returns "not found / not accessible"; the agent escalates; if it proposes anyway, the order can't be resolved → Policy `ORDER_NOT_FOUND` → escalate (with a null-order escalation the reviewer can reject); the executor also throws `ORDER_NOT_FOUND`.
+- **Hallucinated order id** → `getOrder` returns "not found / not accessible"; if the agent proposes anyway, the order can't be resolved → Policy `ORDER_NOT_FOUND` → **REJECT (auto-decline)**; the executor also throws `ORDER_NOT_FOUND`.
 - **Refund > payment** → caught three times: Policy `EXCEEDS_PAID` (escalate, so a human can choose a valid amount), the guardrail under the lock, and the `amount > 0` CHECK.
-- **Someone else's order** → the authorization anchor is `session.sub`, never the message or model: read tools filter by it, Policy hard-gates on ownership (`NOT_AUTHORIZED`), and the executor re-verifies before writing.
+- **Someone else's order** → the authorization anchor is `session.sub`, never the message or model: read tools filter by it, and Policy `NOT_AUTHORIZED` → **REJECT (auto-decline)** — a cross-tenant reference is declined, never turned into a human-approvable action on another customer's order. The executor also re-verifies ownership on the auto path.
 - **LLM refusal / rate limit / max iterations** → the run records `stop_reason`; a run with no valid proposal defaults to an escalation (fail toward the human).
 
 ## Traceability
