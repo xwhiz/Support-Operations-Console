@@ -204,3 +204,44 @@ export async function getEscalationDetail(escalationId: string, dbc: DB = appDb)
 }
 
 export type EscalationDetail = NonNullable<Awaited<ReturnType<typeof getEscalationDetail>>>;
+
+/** A customer's own support requests + outcomes (own-data scoped by caller). */
+export async function listCustomerRequests(customerId: string, dbc: DB = appDb) {
+  const rows = await dbc
+    .select({
+      id: supportRequests.id,
+      message: supportRequests.rawText,
+      createdAt: supportRequests.createdAt,
+      status: supportRequests.status,
+      agentRunId: agentRuns.id,
+      finalDecision: agentRuns.finalDecision,
+      finalMessage: agentRuns.finalMessage,
+      escalationStatus: escalations.status,
+    })
+    .from(supportRequests)
+    .leftJoin(agentRuns, eq(agentRuns.supportRequestId, supportRequests.id))
+    .leftJoin(escalations, eq(escalations.supportRequestId, supportRequests.id))
+    .where(eq(supportRequests.requesterCustomerId, customerId))
+    .orderBy(desc(supportRequests.createdAt));
+
+  const runIds = rows.map((r) => r.agentRunId).filter((x): x is string => Boolean(x));
+  const props = runIds.length
+    ? await dbc.select().from(proposedActions).where(inArray(proposedActions.agentRunId, runIds))
+    : [];
+  const propByRun = new Map<string, (typeof props)[number]>();
+  for (const p of props) if (p.agentRunId) propByRun.set(p.agentRunId, p);
+
+  return rows.map((r) => {
+    const p = r.agentRunId ? propByRun.get(r.agentRunId) : undefined;
+    const payload = (p?.payload ?? { type: "no_action" }) as ProposedActionPayload;
+    return {
+      id: r.id,
+      message: r.message,
+      createdAt: r.createdAt,
+      status: r.status,
+      escalationStatus: r.escalationStatus,
+      actionDescription: describeAction(payload),
+      finalMessage: r.finalMessage,
+    };
+  });
+}

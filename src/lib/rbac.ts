@@ -43,6 +43,7 @@ const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/portal", permission: "request.create" },
   { prefix: "/console", permission: "escalation.read" },
   { prefix: "/api/support-requests", permission: "request.create" },
+  { prefix: "/api/my-requests", permission: "request.read_own" },
   { prefix: "/api/escalations", permission: "escalation.read" },
   { prefix: "/api/requests", permission: "escalation.read" },
 ];
