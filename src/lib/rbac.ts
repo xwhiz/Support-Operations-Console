@@ -44,6 +44,7 @@ const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/console", permission: "escalation.read" },
   { prefix: "/api/support-requests", permission: "request.create" },
   { prefix: "/api/escalations", permission: "escalation.read" },
+  { prefix: "/api/requests", permission: "escalation.read" },
 ];
 
 export function requiredPermissionFor(pathname: string): Permission | null {
