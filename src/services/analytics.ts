@@ -114,6 +114,7 @@ export type CustomerRow = {
   supportRequestCount: number;
   pendingRequests: number;
   refundsCount: number;
+  refundedTotal: string;
   lastActivity: string | null;
 };
 
@@ -135,7 +136,7 @@ export async function getCustomersAnalytics(
     dbc.execute(sql`select customer_id as id, count(*)::int as c, coalesce(sum(total_amount), 0)::text as v from orders group by customer_id`),
     dbc.execute(sql`select o.customer_id as id, coalesce(sum(p.amount), 0)::text as v from payments p join orders o on o.id = p.order_id where p.status in ('captured', 'partially_refunded') group by o.customer_id`),
     dbc.execute(sql`select requester_customer_id as id, count(*)::int as c, count(*) filter (where status in ('received', 'processing', 'escalated'))::int as pending from support_requests group by requester_customer_id`),
-    dbc.execute(sql`select o.customer_id as id, count(*)::int as c from refunds r join orders o on o.id = r.order_id where r.status = 'succeeded' group by o.customer_id`),
+    dbc.execute(sql`select o.customer_id as id, count(*)::int as c, coalesce(sum(r.amount), 0)::text as v from refunds r join orders o on o.id = r.order_id where r.status = 'succeeded' group by o.customer_id`),
     dbc.execute(sql`
       select id, max(ts) as last from (
         select customer_id as id, max(created_at) as ts from orders group by customer_id
@@ -152,8 +153,9 @@ export async function getCustomersAnalytics(
   const reqs = new Map<string, { c: number; pending: number }>();
   for (const r of reqRes.rows as Row[])
     reqs.set(String(r.id), { c: n(r.c), pending: n(r.pending) });
-  const refs = new Map<string, number>();
-  for (const r of refRes.rows as Row[]) refs.set(String(r.id), n(r.c));
+  const refs = new Map<string, { c: number; v: string }>();
+  for (const r of refRes.rows as Row[])
+    refs.set(String(r.id), { c: n(r.c), v: s(r.v) });
   const last = new Map<string, string>();
   for (const r of actRes.rows as Row[])
     if (r.last) last.set(String(r.id), new Date(r.last as string).toISOString());
@@ -170,7 +172,8 @@ export async function getCustomersAnalytics(
       totalRevenue: revenue.get(id) ?? "0",
       supportRequestCount: rq?.c ?? 0,
       pendingRequests: rq?.pending ?? 0,
-      refundsCount: refs.get(id) ?? 0,
+      refundsCount: refs.get(id)?.c ?? 0,
+      refundedTotal: refs.get(id)?.v ?? "0",
       lastActivity: last.get(id) ?? null,
     };
   });

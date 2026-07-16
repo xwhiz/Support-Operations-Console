@@ -59,7 +59,7 @@ export function CustomersTable() {
               <Th>Revenue</Th>
               <Th>Requests</Th>
               <Th>Pending</Th>
-              <Th>Refunds</Th>
+              <Th>Refunded</Th>
               <Th>Last active</Th>
             </Tr>
           </Thead>
@@ -109,7 +109,14 @@ export function CustomersTable() {
                     <span className="text-gray-400">—</span>
                   )}
                 </Td>
-                <Td className="tnum text-gray-700">{c.refundsCount}</Td>
+                <Td className="tnum whitespace-nowrap text-gray-700">
+                  {formatMoney(c.refundedTotal)}
+                  {c.refundsCount > 0 && (
+                    <span className="ml-1 text-xs text-gray-400">
+                      · {c.refundsCount}
+                    </span>
+                  )}
+                </Td>
                 <Td className="whitespace-nowrap text-gray-500">
                   {c.lastActivity
                     ? new Date(c.lastActivity).toLocaleDateString()
