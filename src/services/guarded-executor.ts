@@ -87,17 +87,17 @@ function assertOwnership(
 
 type AttemptOutcome = "executed" | "rejected_guardrail" | "conflict" | "error";
 
-function classify(e: unknown): { outcome: AttemptOutcome; violation?: string } {
+export function classify(e: unknown): { outcome: AttemptOutcome; violation?: string } {
   if (e instanceof GuardrailError) return { outcome: "rejected_guardrail", violation: e.code };
   if (e instanceof ConflictError) return { outcome: "conflict", violation: e.code };
   return { outcome: "error", violation: e instanceof Error ? e.message : String(e) };
 }
 
-async function logAttempt(
+export async function logAttempt(
   dbc: DB,
   actionType: "refund" | "cancellation" | "replacement",
   ctx: ExecutorContext,
-  orderId: string,
+  orderId: string | null,
   outcome: AttemptOutcome,
   violation?: string,
   detail?: unknown,
@@ -223,7 +223,10 @@ export async function executeCancellationWithinTx(tx: Txn, cmd: CancellationComm
   const order = await lockOrder(tx, cmd.orderId);
   assertOwnership(order, cmd.requesterCustomerId);
 
-  if (order.shippedAt !== null) throw new GuardrailError("ALREADY_SHIPPED"); // Rule: no cancel if shipped
+  // Rule: no cancel once fulfilled. Delivery implies shipment, so guard on both.
+  if (order.shippedAt !== null || order.deliveredAt !== null) {
+    throw new GuardrailError("ALREADY_SHIPPED");
+  }
   // A duplicate cancellation is caught by the partial unique index below
   // (uniq_active_cancellation_per_order) -> ConflictError, consistent with refund/replacement.
 

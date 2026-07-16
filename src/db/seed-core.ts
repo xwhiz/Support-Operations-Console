@@ -117,8 +117,8 @@ export async function runSeed(db: DB): Promise<void> {
 
   const o1001 = await makeOrder({ orderNumber: 1001, customerId: alice.id, status: "paid", total: "40.00", sku: "SKU-WIDGET", description: "Blue Widget" });
   const o1002 = await makeOrder({ orderNumber: 1002, customerId: alice.id, status: "shipped", total: "120.00", sku: "SKU-GADGET", description: "Deluxe Gadget", shippedAt: daysAgo(5) });
-  const o1003 = await makeOrder({ orderNumber: 1003, customerId: alice.id, status: "refunded", total: "30.00", sku: "SKU-GIZMO", description: "Small Gizmo", deliveredAt: daysAgo(10) });
-  const o1004 = await makeOrder({ orderNumber: 1004, customerId: alice.id, status: "delivered", total: "80.00", sku: "SKU-LAMP", description: "Desk Lamp", deliveredAt: daysAgo(3) });
+  const o1003 = await makeOrder({ orderNumber: 1003, customerId: alice.id, status: "refunded", total: "30.00", sku: "SKU-GIZMO", description: "Small Gizmo", shippedAt: daysAgo(12), deliveredAt: daysAgo(10) });
+  const o1004 = await makeOrder({ orderNumber: 1004, customerId: alice.id, status: "delivered", total: "80.00", sku: "SKU-LAMP", description: "Desk Lamp", shippedAt: daysAgo(6), deliveredAt: daysAgo(3) });
   await makeOrder({ orderNumber: 1005, customerId: bob.id, status: "paid", total: "25.00", sku: "SKU-CABLE", description: "USB Cable" });
 
   // Order 1003 already fully refunded -> a second refund must be refused.

@@ -31,6 +31,7 @@ export type PolicyDecision = { mode: PolicyMode; reasons: ReasonCode[] };
 export type PolicyOrderFacts = {
   customerId: string;
   shippedAt: Date | null;
+  deliveredAt: Date | null;
   createdAt: Date;
   capturedTotal: string;
   refundedTotal: string;
@@ -47,9 +48,12 @@ export function decidePolicy(input: PolicyInput): PolicyDecision {
   if (input.actionType === "escalate") return { mode: "ESCALATE", reasons: ["AGENT_REQUESTED"] };
   if (input.actionType === "no_action") return { mode: "ESCALATE", reasons: ["NO_ACTION"] };
 
-  if (!input.order) return { mode: "ESCALATE", reasons: ["ORDER_NOT_FOUND"] };
+  // Hard-invalid targets are auto-declined (REJECT), NOT escalated — escalating a
+  // cross-tenant/nonexistent order would create a human-approvable action on an
+  // order the requester doesn't own.
+  if (!input.order) return { mode: "REJECT", reasons: ["ORDER_NOT_FOUND"] };
   if (input.order.customerId !== input.requesterCustomerId) {
-    return { mode: "ESCALATE", reasons: ["NOT_AUTHORIZED"] };
+    return { mode: "REJECT", reasons: ["NOT_AUTHORIZED"] };
   }
 
   if (input.actionType === "replacement") {
@@ -68,7 +72,11 @@ export function decidePolicy(input: PolicyInput): PolicyDecision {
   }
 
   if (input.actionType === "cancellation") {
-    if (input.order.shippedAt !== null) return { mode: "REJECT", reasons: ["ALREADY_SHIPPED"] };
+    // Delivery implies shipment: an order that has shipped OR been delivered is
+    // past the point of cancellation.
+    if (input.order.shippedAt !== null || input.order.deliveredAt !== null) {
+      return { mode: "REJECT", reasons: ["ALREADY_SHIPPED"] };
+    }
     const hours = (Date.now() - input.order.createdAt.getTime()) / 3_600_000;
     if (hours > config.CANCEL_AUTO_WINDOW_HOURS) {
       return { mode: "ESCALATE", reasons: ["OUTSIDE_CANCEL_WINDOW"] };

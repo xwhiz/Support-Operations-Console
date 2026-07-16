@@ -65,6 +65,9 @@ function customerMessage(
     if (reasons.includes("ALREADY_SHIPPED")) {
       return "This order has already shipped, so it can no longer be cancelled. Once it arrives, we can help with a return or replacement if there's an issue.";
     }
+    if (reasons.includes("NOT_AUTHORIZED") || reasons.includes("ORDER_NOT_FOUND")) {
+      return "We couldn't find that order on your account — please double-check the order number.";
+    }
     return "We couldn't complete this request automatically.";
   }
   return "Thanks — I've passed this to our support team for review. A specialist will follow up with you shortly.";
@@ -94,6 +97,7 @@ export async function handleSupportRequest(params: {
   let orderFacts = null as null | {
     customerId: string;
     shippedAt: Date | null;
+    deliveredAt: Date | null;
     createdAt: Date;
     capturedTotal: string;
     refundedTotal: string;
@@ -121,6 +125,7 @@ export async function handleSupportRequest(params: {
       orderFacts = {
         customerId: orderRow.customerId,
         shippedAt: orderRow.shippedAt,
+        deliveredAt: orderRow.deliveredAt,
         createdAt: orderRow.createdAt,
         capturedTotal: toDbAmount(sumMoney(caps.map((p) => p.amount))),
         refundedTotal: toDbAmount(sumMoney(refs.map((r) => r.amount))),
