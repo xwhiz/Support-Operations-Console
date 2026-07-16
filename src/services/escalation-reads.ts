@@ -165,6 +165,7 @@ export async function getEscalationDetail(escalationId: string, dbc: DB = appDb)
       version: row.escalation.version,
       decision: row.escalation.decision,
       decisionNote: row.escalation.decisionNote,
+      decidedByReviewerId: row.escalation.decidedByReviewerId,
       decidedByName: row.decidedByName,
       decidedAt: row.escalation.decidedAt,
       createdAt: row.escalation.createdAt,

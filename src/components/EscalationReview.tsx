@@ -12,6 +12,7 @@ type Detail = {
     version: number;
     decision: string | null;
     decisionNote: string | null;
+    decidedByReviewerId: string | null;
     decidedByName: string | null;
     decidedAt: string | null;
     createdAt: string;
@@ -61,7 +62,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-export function EscalationReview({ id }: { id: string }) {
+export function EscalationReview({ id, viewerId }: { id: string; viewerId: string }) {
   const qc = useQueryClient();
   const { data, isLoading, error } = useQuery({ queryKey: ["escalation", id], queryFn: () => fetchDetail(id) });
   useEscalationUpdates(() => {
@@ -117,6 +118,7 @@ export function EscalationReview({ id }: { id: string }) {
       : escalation.status === "rejected"
         ? "rejected"
         : escalation.status;
+  const decidedByViewer = escalation.decidedByReviewerId === viewerId;
 
   return (
     <div className="space-y-4">
@@ -124,13 +126,19 @@ export function EscalationReview({ id }: { id: string }) {
         ← Back to queue
       </Link>
 
-      {/* Concurrent-state banner: second reviewer sees this without clicking. */}
-      {!isPending && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-          This escalation was <strong>{decidedLabel}</strong>
-          {escalation.decidedByName ? ` by ${escalation.decidedByName}` : ""}. The queue is now up to date.
-        </div>
-      )}
+      {/* Decided-state banner. The decider sees a personal confirmation; everyone
+          else sees who decided it (the second reviewer sees this without clicking). */}
+      {!isPending &&
+        (decidedByViewer ? (
+          <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950/40 dark:text-green-200">
+            You <strong>{decidedLabel}</strong> this request.
+          </div>
+        ) : (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            This request was already <strong>{decidedLabel}</strong>
+            {escalation.decidedByName ? ` by ${escalation.decidedByName}` : ""}.
+          </div>
+        ))}
       {raced && isPending && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           Another reviewer just acted on this — refreshing to the latest state.

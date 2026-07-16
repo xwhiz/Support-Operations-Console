@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/session-cookie";
 import { EscalationReview } from "@/components/EscalationReview";
 
 export default async function EscalationPage({
@@ -5,10 +7,12 @@ export default async function EscalationPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const session = await getSession();
+  if (!session) redirect("/login?next=/console");
   const { id } = await params;
   return (
     <main className="mx-auto max-w-4xl p-6">
-      <EscalationReview id={id} />
+      <EscalationReview id={id} viewerId={session.sub} />
     </main>
   );
 }
