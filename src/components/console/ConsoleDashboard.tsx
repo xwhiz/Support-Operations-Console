@@ -20,6 +20,7 @@ import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { CHART_COLORS, TONE_HEX } from "@/components/charts/common";
 import { orderStatusLabel } from "@/lib/orderStatus";
+import { formatMoney } from "@/lib/format";
 import type { AnalyticsOverview } from "@/services/analytics";
 
 async function fetchOverview(): Promise<AnalyticsOverview> {
@@ -33,9 +34,6 @@ const ESC_COLOR: Record<string, string> = {
   Approved: TONE_HEX.success,
   Rejected: TONE_HEX.error,
 };
-
-const usd = (v: string) =>
-  `$${Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 
 export function ConsoleDashboard() {
   const qc = useQueryClient();
@@ -66,8 +64,8 @@ export function ConsoleDashboard() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Total orders" value={dash(k?.totalOrders ?? 0)} icon={ShoppingBag} />
-        <StatCard label="Revenue" value={dash(k ? usd(k.totalRevenue) : "—")} icon={Banknote} />
-        <StatCard label="Refunds issued" value={dash(k ? usd(k.refundsIssued) : "—")} icon={RotateCcw} />
+        <StatCard label="Revenue" value={dash(k ? formatMoney(k.totalRevenue) : "—")} icon={Banknote} />
+        <StatCard label="Refunds issued" value={dash(k ? formatMoney(k.refundsIssued) : "—")} icon={RotateCcw} />
         <StatCard
           label="Avg decision time"
           value={dash(k?.avgTimeToDecisionHours != null ? `${k.avgTimeToDecisionHours}h` : "—")}

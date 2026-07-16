@@ -22,6 +22,7 @@ import {
   Tr,
 } from "@/components/ui/Table";
 import { OrderStatusControl } from "./OrderStatusControl";
+import { formatMoney } from "@/lib/format";
 
 type Item = { sku: string; description: string | null; quantity: number };
 type Order = {
@@ -82,7 +83,7 @@ export function OrdersTable() {
         <StatCard label="Pending" value={kpis?.pending ?? "—"} icon={Clock} />
         <StatCard
           label="Order value"
-          value={kpis ? `$${kpis.totalValue}` : "—"}
+          value={kpis ? formatMoney(kpis.totalValue) : "—"}
           icon={Wallet}
         />
         <StatCard
@@ -145,7 +146,7 @@ export function OrdersTable() {
                   </Td>
                   <Td className="tnum text-gray-600">{itemCount}</Td>
                   <Td className="tnum font-medium text-gray-900">
-                    ${o.totalAmount}
+                    {formatMoney(o.totalAmount)}
                   </Td>
                   <Td>
                     <Badge tone={s.tone} dot>

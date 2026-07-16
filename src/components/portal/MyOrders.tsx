@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingRow } from "@/components/ui/Spinner";
 import { orderStatusView } from "@/components/ui/status";
+import { formatMoney } from "@/lib/format";
 import {
   Table,
   TableWrap,
@@ -66,11 +67,7 @@ export function MyOrders() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Total orders" value={orders.length} icon={ShoppingBag} />
-        <StatCard
-          label="Total spent"
-          value={`$${totalSpent.toFixed(2)}`}
-          icon={Wallet}
-        />
+        <StatCard label="Total spent" value={formatMoney(totalSpent)} icon={Wallet} />
         <StatCard label="Open orders" value={openCount} icon={Package} />
       </div>
 
@@ -129,7 +126,7 @@ export function MyOrders() {
                     )}
                   </Td>
                   <Td className="tnum font-medium text-gray-900">
-                    ${o.totalAmount}
+                    {formatMoney(o.totalAmount)}
                   </Td>
                   <Td>
                     <Badge tone={s.tone} dot>

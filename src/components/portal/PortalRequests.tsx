@@ -159,7 +159,7 @@ export function PortalRequests({ prefill }: { prefill?: string }) {
             {items.map((r) => {
               const s = customerRequestStatusView(r);
               return (
-                <Card key={r.id} className="!p-4">
+                <Card key={r.id} padded={false} className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm font-medium text-gray-900">
                       “{r.message}”

@@ -7,6 +7,7 @@ import { CATALOG } from "@/lib/catalog";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
+import { formatMoney } from "@/lib/format";
 
 export function CreateOrderModal({
   open,
@@ -74,7 +75,7 @@ export function CreateOrderModal({
                 <Spinner className="text-white" /> Creating…
               </>
             ) : (
-              `Create order · $${total.toFixed(2)}`
+              `Create order · ${formatMoney(total)}`
             )}
           </Button>
         </>
@@ -92,7 +93,7 @@ export function CreateOrderModal({
             <li key={p.sku} className="flex items-center justify-between gap-4 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-900">{p.name}</p>
-                <p className="tnum text-xs text-gray-500">${p.unitPrice}</p>
+                <p className="tnum text-xs text-gray-500">{formatMoney(p.unitPrice)}</p>
               </div>
               <div className="flex items-center gap-2">
                 <button

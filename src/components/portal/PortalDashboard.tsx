@@ -12,6 +12,7 @@ import { AreaChart } from "@/components/charts/AreaChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { TONE_HEX } from "@/components/charts/common";
 import { orderStatusView, customerRequestStatusView } from "@/components/ui/status";
+import { formatMoney } from "@/lib/format";
 import type { PortalOverview } from "@/services/analytics";
 
 async function fetchOverview(): Promise<PortalOverview> {
@@ -19,9 +20,6 @@ async function fetchOverview(): Promise<PortalOverview> {
   if (!res.ok) throw new Error("failed to load overview");
   return res.json();
 }
-
-const usd = (v: string) =>
-  `$${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function PortalDashboard() {
   const qc = useQueryClient();
@@ -61,7 +59,7 @@ export function PortalDashboard() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Total orders" value={dash(k?.totalOrders ?? 0)} icon={ShoppingBag} />
-        <StatCard label="Total spent" value={dash(k ? usd(k.totalSpend) : "—")} icon={Wallet} />
+        <StatCard label="Total spent" value={dash(k ? formatMoney(k.totalSpend) : "—")} icon={Wallet} />
         <StatCard label="Open requests" value={dash(k?.openRequests ?? 0)} icon={Inbox} />
         <StatCard label="Resolved" value={dash(k?.resolvedRequests ?? 0)} icon={CheckCircle2} />
       </div>

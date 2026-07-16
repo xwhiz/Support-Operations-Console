@@ -4,11 +4,11 @@
  * from the structured payload the executor consumes.
  */
 import type { ProposedActionPayload } from "../db/schema";
+import { formatMoney } from "./format";
 
 export function formatAmount(amount?: string | null, currency = "USD"): string {
   if (!amount) return "";
-  const symbol = currency === "USD" ? "$" : `${currency} `;
-  return `${symbol}${amount}`;
+  return formatMoney(amount, currency);
 }
 
 export function describeAction(p: ProposedActionPayload): string {

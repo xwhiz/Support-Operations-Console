@@ -17,6 +17,7 @@ import {
   Thead,
   Tr,
 } from "@/components/ui/Table";
+import { formatMoney } from "@/lib/format";
 import type { CustomersAnalytics } from "@/services/analytics";
 
 async function fetchCustomers(): Promise<CustomersAnalytics> {
@@ -24,9 +25,6 @@ async function fetchCustomers(): Promise<CustomersAnalytics> {
   if (!res.ok) throw new Error("failed to load customers");
   return res.json();
 }
-
-const usd = (v: string) =>
-  `$${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function CustomersTable() {
   const { data, isLoading } = useQuery({
@@ -48,7 +46,7 @@ export function CustomersTable() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Total customers" value={isLoading ? "—" : k?.totalCustomers ?? 0} icon={Users} />
         <StatCard label="Total orders" value={isLoading ? "—" : k?.totalOrders ?? 0} icon={ShoppingBag} />
-        <StatCard label="Total revenue" value={isLoading ? "—" : k ? usd(k.totalRevenue) : "—"} icon={Banknote} />
+        <StatCard label="Total revenue" value={isLoading ? "—" : k ? formatMoney(k.totalRevenue) : "—"} icon={Banknote} />
         <StatCard label="With open requests" value={isLoading ? "—" : k?.withOpenRequests ?? 0} icon={Clock} />
       </div>
 
@@ -90,7 +88,7 @@ export function CustomersTable() {
                 <Td className="tnum text-gray-700">{c.totalOrders}</Td>
                 <Td className="w-48">
                   <div className="tnum font-medium text-gray-900">
-                    {usd(c.totalRevenue)}
+                    {formatMoney(c.totalRevenue)}
                   </div>
                   <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
                     <div

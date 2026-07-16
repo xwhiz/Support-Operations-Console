@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Textarea } from "@/components/ui/Input";
 import { Spinner } from "@/components/ui/Spinner";
+import { formatMoney } from "@/lib/format";
 
 type Detail = {
   escalation: {
@@ -183,7 +184,7 @@ export function EscalationReview({
   const decidedByViewer = escalation.decidedByReviewerId === viewerId;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5 pb-6">
+    <div className="mx-auto max-w-4xl space-y-6 pb-6">
       <Link
         href="/console/requests"
         className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-900"
@@ -256,14 +257,14 @@ export function EscalationReview({
         <SectionCard title={`Order #${order.orderNumber}`}>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
             <Metric label="Status" value={order.status} />
-            <Metric label="Total" value={`$${order.total}`} />
-            <Metric label="Paid" value={`$${order.amountPaid}`} />
-            <Metric label="Refundable" value={`$${order.refundableAmount}`} />
+            <Metric label="Total" value={formatMoney(order.total)} />
+            <Metric label="Paid" value={formatMoney(order.amountPaid)} />
+            <Metric label="Refundable" value={formatMoney(order.refundableAmount)} />
             <Metric label="Shipped" value={order.shipped ? "Yes" : "No"} />
             <Metric label="Delivered" value={order.delivered ? "Yes" : "No"} />
             <Metric
               label="Already refunded"
-              value={`$${order.amountRefunded}`}
+              value={formatMoney(order.amountRefunded)}
             />
           </dl>
           <ul className="mt-4 space-y-1 border-t border-gray-100 pt-3 text-sm text-gray-600">
