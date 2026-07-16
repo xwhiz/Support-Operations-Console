@@ -29,7 +29,7 @@ describe("config validation", () => {
       DATABASE_URL: "postgres://u:p@h:5432/db",
       AUTH_SECRET: "a".repeat(16),
     });
-    expect(c.GEMINI_MODEL).toBe("gemini-2.5-flash");
+    expect(c.GEMINI_MODEL).toBe("gemini-flash-latest");
     expect(c.CANCEL_AUTO_WINDOW_HOURS).toBe(24);
     expect(c.REPLACEMENT_WINDOW_DAYS).toBe(30);
     expect(c.AUTO_REFUND_MAX).toBe("50.00");
