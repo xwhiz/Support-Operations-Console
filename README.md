@@ -88,7 +88,7 @@ curl -s -X POST localhost:3000/api/dev/execute -H "content-type: application/jso
 The app runs as a single persistent container (chosen over serverless so the agent loop and the LISTEN/NOTIFY long-poll work without connection-pooling gymnastics). `railway.json` sets the start command to `npm run start:prod`, which **migrates**, **seeds if empty**, then starts Next.js.
 
 1. Create a Railway project from this GitHub repo; add the **PostgreSQL** plugin (provides `DATABASE_URL`).
-2. Set service variables: `AUTH_SECRET` (long random string), `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-flash-latest`), `NODE_ENV=production`. Optional tuning: `AUTO_REFUND_MAX`, `CANCEL_AUTO_WINDOW_HOURS`, `REPLACEMENT_WINDOW_DAYS`.
+2. Set service variables: `AUTH_SECRET` (long random string), `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.1-flash-lite`), `NODE_ENV=production`. Optional tuning: `AUTO_REFUND_MAX`, `CANCEL_AUTO_WINDOW_HOURS`, `REPLACEMENT_WINDOW_DAYS`.
 3. Deploy. Railway builds with Nixpacks (`next build`) and runs `start:prod`.
 
 ## Environment variables
