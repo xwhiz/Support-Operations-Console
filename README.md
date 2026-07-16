@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Support Operations Console
 
-## Getting Started
+An AI agent triages e-commerce support requests (refunds, cancellations, replacements) and a human-reviewer console approves or rejects the risky ones. Built so the **human-approval boundary, guardrails, and concurrency safety are real system properties** — enforced in application code and the database, not in the prompt.
 
-First, run the development server:
+- **Live demo:** _<add your Railway URL here after deploy>_
+- **Architecture & design rationale:** [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+
+**Stack:** Next.js 16 (App Router) · PostgreSQL 16 · Drizzle ORM · Google Gemini (`@google/genai`, real tool-calling loop) · TanStack Query + Postgres LISTEN/NOTIFY · Vitest.
+
+## Demo accounts (password: `password123`)
+
+| Role | Email | Lands on |
+|---|---|---|
+| Customer | `alice@example.com` | `/portal` |
+| Customer | `bob@example.com` | `/portal` |
+| Reviewer | `rae@support.example.com` | `/console` |
+| Reviewer | `sam@support.example.com` | `/console` |
+
+Seeded orders: **1001** open/unshipped ($40, auto-refundable) · **1002** shipped ($120) · **1003** already refunded · **1004** delivered ($80) · **1005** Bob's (authorization test). Two escalations are pre-seeded so the console is reviewable immediately.
+
+---
+
+## Run locally
+
+**Prerequisites:** Node 20+, Docker Desktop.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 1. Start Postgres + Adminer (DB explorer at http://localhost:8080)
+docker compose up -d
+
+# 2. Configure env
+cp .env.example .env      # then set GEMINI_API_KEY (from https://aistudio.google.com/apikey) and AUTH_SECRET
+
+# 3. Install, migrate, seed
+npm install
+npm run db:migrate
+npm run db:seed
+
+# 4. Run
+npm run dev               # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 and sign in with a demo account (quick-login buttons are on the login page).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> **Note on the agent:** the customer portal's "submit" calls the live Gemini API. The free tier has a low request cap (e.g. ~20/day on some keys); if you hit it, submissions return a friendly "rate-limited" message. **Everything else — the reviewer console, approvals, guardrails, and all concurrency tests — is LLM-independent** and works regardless (the two pre-seeded escalations let you exercise the full review flow immediately).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tests
 
-## Learn More
+```bash
+npm test                  # full suite (unit + integration, ~68 tests)
+npm run test:concurrency  # double-refund / double-cancel / double-approval + guardrails
+```
+Integration tests run against a dedicated `support_console_test` database (created automatically by `docker compose`).
 
-To learn more about Next.js, take a look at the following resources:
+## Reproduce the graded checks
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Guardrails + double-refund (dev-only HTTP harness):**
+```bash
+# 8 concurrent refunds on one order -> exactly ONE succeeds; inspect the refunds table in Adminer
+curl -s -X POST localhost:3000/api/dev/execute -H "content-type: application/json" \
+  -d '{"action":"refund","orderNumber":1002,"amount":"50.00","count":8}'
+# -> {"summary":{"executed":1,"conflict":7,...}}   and refunds has exactly ONE row for order 1002
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# guardrail: cancelling a shipped order is refused
+curl -s -X POST localhost:3000/api/dev/execute -H "content-type: application/json" \
+  -d '{"action":"cancellation","orderNumber":1002,"count":1}'   # -> guardrail ALREADY_SHIPPED
+```
 
-## Deploy on Vercel
+**Double-approval (two browsers):** sign in as `rae` and `sam` in two sessions, both open the same pending escalation in `/console`, both click **Approve** → one succeeds, the other shows "already approved by …", and the refund executes **exactly once**. Decisions propagate to the other session within ~2s (long-poll).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Guardrails via the agent:** submit "refund order 1002" (>$50 → escalates), "cancel order 1002" (shipped → declined), "another refund for order 1003" (already refunded → declined).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Key files
+
+| Concern | File |
+|---|---|
+| **Guardrails + concurrency** (the only mutation path) | `src/services/guarded-executor.ts` |
+| **Policy Engine** (AUTO / ESCALATE / REJECT) | `src/services/policy.ts` |
+| **Reviewer decisions** (double-approval exactly-once) | `src/services/escalations.ts` |
+| Agent loop + tools | `src/agent/{loop,tools,llm}.ts` |
+| Intake orchestration | `src/services/intake.ts` |
+| Long-poll (LISTEN/NOTIFY) | `src/lib/notify.ts` |
+| Schema + migrations | `src/db/schema.ts`, `drizzle/` |
+| Config (single env entry point) | `src/config.ts` |
+
+## Deployment (Railway)
+
+The app runs as a single persistent container (chosen over serverless so the agent loop and the LISTEN/NOTIFY long-poll work without connection-pooling gymnastics). `railway.json` sets the start command to `npm run start:prod`, which **migrates**, **seeds if empty**, then starts Next.js.
+
+1. Create a Railway project from this GitHub repo; add the **PostgreSQL** plugin (provides `DATABASE_URL`).
+2. Set service variables: `AUTH_SECRET` (long random string), `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-flash-latest`), `NODE_ENV=production`. Optional tuning: `AUTO_REFUND_MAX`, `CANCEL_AUTO_WINDOW_HOURS`, `REPLACEMENT_WINDOW_DAYS`.
+3. Deploy. Railway builds with Nixpacks (`next build`) and runs `start:prod`.
+
+## Environment variables
+
+See [`.env.example`](./.env.example). All env access is centralized and zod-validated in `src/config.ts`, so the app fails fast on misconfiguration.
