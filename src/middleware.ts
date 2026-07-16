@@ -40,7 +40,11 @@ export const config = {
     "/console/:path*",
     "/api/support-requests/:path*",
     "/api/my-requests/:path*",
+    "/api/my-orders/:path*",
     "/api/escalations/:path*",
     "/api/requests/:path*",
+    "/api/analytics/:path*",
+    "/api/customers/:path*",
+    "/api/portal/:path*",
   ],
 };

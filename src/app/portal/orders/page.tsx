@@ -1,12 +1,5 @@
-import { ShoppingBag } from "lucide-react";
-import { ComingSoon } from "@/components/ComingSoon";
+import { MyOrders } from "@/components/portal/MyOrders";
 
 export default function PortalOrdersPage() {
-  return (
-    <ComingSoon
-      title="Orders"
-      subtitle="Create and track your orders."
-      icon={ShoppingBag}
-    />
-  );
+  return <MyOrders />;
 }

@@ -12,17 +12,28 @@ export type Permission =
   | "request.read_own"
   | "escalation.read"
   | "escalation.decide"
-  | "order.read_any";
+  | "order.read_any"
+  | "order.create"
+  | "order.read_own"
+  | "order.update_status";
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-  customer: ["request.create", "request.read_own"],
-  reviewer: ["escalation.read", "escalation.decide", "order.read_any"],
+  customer: ["request.create", "request.read_own", "order.create", "order.read_own"],
+  reviewer: [
+    "escalation.read",
+    "escalation.decide",
+    "order.read_any",
+    "order.update_status",
+  ],
   admin: [
     "request.create",
     "request.read_own",
     "escalation.read",
     "escalation.decide",
     "order.read_any",
+    "order.create",
+    "order.read_own",
+    "order.update_status",
   ],
 };
 
@@ -44,8 +55,15 @@ const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/console", permission: "escalation.read" },
   { prefix: "/api/support-requests", permission: "request.create" },
   { prefix: "/api/my-requests", permission: "request.read_own" },
+  { prefix: "/api/my-orders", permission: "order.read_own" },
   { prefix: "/api/escalations", permission: "escalation.read" },
   { prefix: "/api/requests", permission: "escalation.read" },
+  { prefix: "/api/analytics", permission: "escalation.read" },
+  { prefix: "/api/customers", permission: "order.read_any" },
+  { prefix: "/api/portal", permission: "order.read_own" },
+  // NOTE: /api/orders is intentionally omitted — it serves POST (order.create,
+  // customer) and GET (order.read_any, reviewer) on one path, which this
+  // path-based map can't express. Those handlers enforce per-method auth.
 ];
 
 export function requiredPermissionFor(pathname: string): Permission | null {
