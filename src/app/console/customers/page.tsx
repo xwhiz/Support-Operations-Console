@@ -1,12 +1,5 @@
-import { Users } from "lucide-react";
-import { ComingSoon } from "@/components/ComingSoon";
+import { CustomersTable } from "@/components/console/CustomersTable";
 
 export default function ConsoleCustomersPage() {
-  return (
-    <ComingSoon
-      title="Customers"
-      subtitle="Revenue, orders, and support activity per customer."
-      icon={Users}
-    />
-  );
+  return <CustomersTable />;
 }

@@ -1,12 +1,5 @@
-import { LayoutDashboard } from "lucide-react";
-import { ComingSoon } from "@/components/ComingSoon";
+import { ConsoleDashboard } from "@/components/console/ConsoleDashboard";
 
 export default function ConsoleDashboardPage() {
-  return (
-    <ComingSoon
-      title="Dashboard"
-      subtitle="Operations overview across requests, decisions, and revenue."
-      icon={LayoutDashboard}
-    />
-  );
+  return <ConsoleDashboard />;
 }
