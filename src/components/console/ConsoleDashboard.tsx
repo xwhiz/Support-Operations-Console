@@ -2,13 +2,17 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Ban,
   Banknote,
   CheckCircle2,
+  CircleAlert,
   Clock,
   Inbox,
+  Loader,
   RotateCcw,
   Timer,
   XCircle,
+  Zap,
   ShoppingBag,
 } from "lucide-react";
 import { useEscalationUpdates } from "@/hooks/useEscalationUpdates";
@@ -48,6 +52,20 @@ export function ConsoleDashboard() {
   const k = data?.kpis;
   const dash = (v: React.ReactNode) => (isLoading ? "—" : v);
 
+  // Every request lands in exactly one of these, so the cards sum to the total.
+  // Zero buckets are hidden (they don't change the sum).
+  const breakdown = k
+    ? [
+        { label: "Pending review", value: k.pendingEscalations, icon: Clock },
+        { label: "Approved", value: k.approved, icon: CheckCircle2 },
+        { label: "Rejected", value: k.rejected, icon: XCircle },
+        { label: "Auto-resolved", value: k.autoResolved, icon: Zap },
+        { label: "Auto-declined", value: k.autoDeclined, icon: Ban },
+        { label: "In progress", value: k.inProgress, icon: Loader },
+        { label: "Failed", value: k.failed, icon: CircleAlert },
+      ].filter((b) => b.value > 0)
+    : [];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -56,10 +74,15 @@ export function ConsoleDashboard() {
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total requests" value={dash(k?.totalRequests ?? 0)} icon={Inbox} />
-        <StatCard label="Pending review" value={dash(k?.pendingEscalations ?? 0)} icon={Clock} />
-        <StatCard label="Approved" value={dash(k?.approved ?? 0)} icon={CheckCircle2} />
-        <StatCard label="Rejected" value={dash(k?.rejected ?? 0)} icon={XCircle} />
+        <StatCard
+          label="Total requests"
+          value={dash(k?.totalRequests ?? 0)}
+          icon={Inbox}
+          hint={k ? "Sum of all states" : undefined}
+        />
+        {breakdown.map((b) => (
+          <StatCard key={b.label} label={b.label} value={b.value} icon={b.icon} />
+        ))}
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

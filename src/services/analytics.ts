@@ -20,6 +20,8 @@ export type AnalyticsOverview = {
     rejected: number;
     autoResolved: number;
     autoDeclined: number;
+    failed: number;
+    inProgress: number;
     totalOrders: number;
     totalRevenue: string;
     refundsIssued: string;
@@ -35,7 +37,7 @@ export async function getAnalyticsOverview(
   dbc: DB = appDb,
 ): Promise<AnalyticsOverview> {
   const [
-    reqByStatus,
+    reqBuckets,
     escByStatus,
     orderCount,
     revenue,
@@ -45,7 +47,25 @@ export async function getAnalyticsOverview(
     byActionType,
     byPolicyReason,
   ] = await Promise.all([
-    dbc.execute(sql`select status, count(*)::int as c from support_requests group by status`),
+    // Partition EVERY request into exactly one outcome bucket so the KPI cards
+    // always reconcile to the total (escalation state wins, else request state).
+    dbc.execute(sql`
+      select
+        case
+          when e.status = 'pending' then 'pending'
+          when e.status in ('approved', 'executed') then 'approved'
+          when e.status = 'rejected' then 'rejected'
+          when e.status = 'execution_failed' then 'failed'
+          when sr.status = 'auto_resolved' then 'auto_resolved'
+          when sr.status = 'rejected' then 'auto_declined'
+          when sr.status = 'failed' then 'failed'
+          else 'in_progress'
+        end as bucket,
+        count(*)::int as c
+      from support_requests sr
+      left join escalations e on e.support_request_id = sr.id
+      group by 1
+    `),
     dbc.execute(sql`select status, count(*)::int as c from escalations group by status`),
     dbc.execute(sql`select count(*)::int as c from orders`),
     dbc.execute(sql`select coalesce(sum(amount), 0)::text as v from payments where status in ('captured', 'partially_refunded')`),
@@ -56,10 +76,10 @@ export async function getAnalyticsOverview(
     dbc.execute(sql`select reason as name, count(*)::int as c from proposed_actions, lateral jsonb_array_elements_text(policy_reasons) as reason group by reason order by c desc`),
   ]);
 
-  const reqMap: Record<string, number> = {};
+  const bucketMap: Record<string, number> = {};
   let totalRequests = 0;
-  for (const r of reqByStatus.rows as Row[]) {
-    reqMap[String(r.status)] = n(r.c);
+  for (const r of reqBuckets.rows as Row[]) {
+    bucketMap[String(r.bucket)] = n(r.c);
     totalRequests += n(r.c);
   }
 
@@ -72,11 +92,13 @@ export async function getAnalyticsOverview(
   return {
     kpis: {
       totalRequests,
-      pendingEscalations: escMap["pending"] ?? 0,
-      approved: (escMap["approved"] ?? 0) + (escMap["executed"] ?? 0),
-      rejected: escMap["rejected"] ?? 0,
-      autoResolved: reqMap["auto_resolved"] ?? 0,
-      autoDeclined: reqMap["rejected"] ?? 0,
+      pendingEscalations: bucketMap["pending"] ?? 0,
+      approved: bucketMap["approved"] ?? 0,
+      rejected: bucketMap["rejected"] ?? 0,
+      autoResolved: bucketMap["auto_resolved"] ?? 0,
+      autoDeclined: bucketMap["auto_declined"] ?? 0,
+      failed: bucketMap["failed"] ?? 0,
+      inProgress: bucketMap["in_progress"] ?? 0,
       totalOrders: n((orderCount.rows as Row[])[0]?.c),
       totalRevenue: s((revenue.rows as Row[])[0]?.v),
       refundsIssued: s((refundsIssued.rows as Row[])[0]?.v),
