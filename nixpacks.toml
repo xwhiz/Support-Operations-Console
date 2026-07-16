@@ -1,0 +1,8 @@
+# Override Nixpacks defaults.
+# Railway's Nixpacks provisions npm 9.x, which has a bug validating nested
+# platform-specific optional deps (@esbuild/*) in lockfileVersion 3 and falsely
+# reports them as "Missing from lock file" during `npm ci`.
+# `npm install` reconciles the lock file instead of doing the strict sync check,
+# so the build succeeds regardless of the builder's npm version.
+[phases.install]
+cmds = ["npm install --no-audit --no-fund"]
